@@ -6,7 +6,8 @@ function App() {
   const [newPlayer, setNewPlayer] = useState('');
   const [results, setResults] = useState([]);
 
-  const baseURL = 'http://localhost:8080/api';
+ // const baseURL = 'http://localhost:8080/api';
+    const baseURL ='https://poker-production.up.railway.app/api';
 
   useEffect(() => {
     fetchPlayers();
