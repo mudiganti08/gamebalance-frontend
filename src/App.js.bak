@@ -1,0 +1,160 @@
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+
+function App() {
+  const [players, setPlayers] = useState([]);
+  const [newPlayer, setNewPlayer] = useState('');
+  const [results, setResults] = useState([]);
+
+  const baseURL = 'http://localhost:8080/api';
+
+  useEffect(() => {
+    fetchPlayers();
+  }, []);
+
+  const fetchPlayers = async () => {
+    try {
+      const res = await axios.get(`${baseURL}/players`);
+      // Calculate total taken from bank
+      const playersWithTaken = res.data.map(p => ({
+        ...p,
+        withdrawals: p.withdrawals.reduce((sum, w) => sum + w.amount, 0)
+      }));
+      setPlayers(playersWithTaken);
+    } catch (err) {
+      console.error("Failed to fetch players:", err);
+    }
+  };
+
+  const addPlayer = async () => {
+    if (!newPlayer.trim()) return;
+    try {
+      await axios.post(`${baseURL}/players`, { name: newPlayer });
+      setNewPlayer('');
+      fetchPlayers();
+    } catch (err) {
+      console.error("Error adding player:", err);
+      alert("Failed to add player. Check server logs.");
+    }
+  };
+
+  const deletePlayer = async (id) => {
+    try {
+      await axios.delete(`${baseURL}/players/${id}`);
+      fetchPlayers();
+    } catch (err) {
+      console.error("Error deleting player:", err);
+    }
+  };
+
+  const addWithdrawal = async (id) => {
+    try {
+      await axios.post(`${baseURL}/players/${id}/withdrawals`, {
+        amount: 20,
+        addedBy: "admin" // hardcoded
+      });
+      fetchPlayers();
+    } catch (err) {
+      console.error("Error adding withdrawal:", err);
+    }
+  };
+
+  const updateReturn = async (id, amount) => {
+    try {
+      const player = players.find(p => p.id === id);
+      await axios.put(`${baseURL}/players/${id}`, {
+        name: player.name,
+        finalAmount: parseFloat(amount) || 0
+      });
+      fetchPlayers();
+    } catch (err) {
+      console.error("Error updating return amount:", err);
+    }
+  };
+
+  const calculateResults = async () => {
+    const unmatched = players.filter(p => {
+      const taken = p.withdrawals;
+      const returned = p.finalAmount || 0;
+      return Math.abs(taken - returned) > 0.01;
+    });
+
+    if (unmatched.length > 0) {
+      const names = unmatched.map(p => `${p.name} (Taken: $${p.withdrawals}, Returned: $${p.finalAmount || 0})`);
+      alert("Mismatch detected:\n" + names.join('\n'));
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${baseURL}/results`);
+      setResults(res.data.settlements);
+    } catch (err) {
+      console.error("Error calculating results:", err);
+    }
+  };
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <h1>🏦 Poker Game Tracker</h1>
+
+      <div>
+        <input
+          placeholder="Player name"
+          value={newPlayer}
+          onChange={e => setNewPlayer(e.target.value)}
+        />
+        <button onClick={addPlayer}>Add Player</button>
+      </div>
+
+      <table border="1" style={{ marginTop: '20px', width: '100%' }}>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Taken from Bank ($)</th>
+            <th>Add to Bank</th>
+            <th>Returned ($)</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {players.map(player => (
+            <tr key={player.id}>
+              <td>{player.name}</td>
+              <td>{player.withdrawals}</td>
+              <td>
+                <button onClick={() => addWithdrawal(player.id)}>+20</button>
+              </td>
+              <td>
+                <input
+                  type="number"
+                  defaultValue={player.finalAmount}
+                  onBlur={e => updateReturn(player.id, e.target.value)}
+                />
+              </td>
+              <td>
+                <button onClick={() => deletePlayer(player.id)}>❌ Remove</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <button onClick={calculateResults} style={{ marginTop: '20px' }}>
+        🧮 Calculate Results
+      </button>
+
+      {results.length > 0 && (
+        <div>
+          <h2>💰 Settlements</h2>
+          <ul>
+            {results.map((line, idx) => (
+              <li key={idx}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;
