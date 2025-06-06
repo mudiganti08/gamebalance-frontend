@@ -7,7 +7,7 @@ function App() {
   const [results, setResults] = useState([]);
 
  // const baseURL = 'http://localhost:8080/api';
-    const baseURL ='https://poker-production.up.railway.app/api';
+    const baseURL ='https://constitutional-magdaia-mudiganti08-fb403eb3.koyeb.app/api';
 
   useEffect(() => {
     fetchPlayers();
